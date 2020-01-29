@@ -1,0 +1,42 @@
+# Default values for dind-node.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+nodeCount: 1
+
+kubernetes:
+  version: 1.16.3
+
+images:
+  hyperkube:
+    repository: k8s.gcr.io/hyperkube
+  dind:
+    repository: docker:18.06-dind
+
+resources:
+  kubelet:
+    requests:
+      cpu: 100m
+      memory: 400Mi
+    limits:
+      cpu: 100m
+      memory: 400Mi
+  dind:
+    requests:
+      cpu: 1
+      memory: 4Gi
+    limits:
+      cpu: 1
+      memory: 4Gi
+
+worker:
+  name: "mock-worker"
+
+ports:
+  vpn:
+    port: 4314
+    nodePort: 30123
+
+auth:
+  bootstrapToken: abcdef.0123456789abcdef
+  caCert: ""

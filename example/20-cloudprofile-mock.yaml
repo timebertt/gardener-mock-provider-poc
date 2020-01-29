@@ -1,0 +1,63 @@
+apiVersion: core.gardener.cloud/v1beta1
+kind: CloudProfile
+metadata:
+  name: mock
+spec:
+  kubernetes:
+    versions:
+    - version: 1.17.2
+    - expirationDate: "2020-05-31T23:59:59Z"
+      version: 1.17.1
+    - version: 1.16.6
+    - expirationDate: "2020-05-31T23:59:59Z"
+      version: 1.16.4
+    - expirationDate: "2020-04-12T23:59:59Z"
+      version: 1.16.3
+    - expirationDate: "2020-03-15T23:59:59Z"
+      version: 1.16.2
+    - expirationDate: "2020-02-15T23:59:59Z"
+      version: 1.16.1
+    - version: 1.15.7
+    - expirationDate: "2020-04-12T23:59:59Z"
+      version: 1.15.6
+    - expirationDate: "2020-03-15T23:59:59Z"
+      version: 1.15.5
+    - expirationDate: "2020-02-15T23:59:59Z"
+      version: 1.15.4
+    - version: 1.14.10
+    - expirationDate: "2020-04-12T23:59:59Z"
+      version: 1.14.9
+    - expirationDate: "2020-03-15T23:59:59Z"
+      version: 1.14.8
+    - expirationDate: "2020-02-15T23:59:59Z"
+      version: 1.14.6
+    - version: 1.13.12
+    - expirationDate: "2020-02-15T23:59:59Z"
+      version: 1.13.11
+    - version: 1.12.10
+    - version: 1.11.10
+    - version: 1.10.13
+  machineImages:
+  - name: mockos
+    versions:
+    - version: 2135.6.0
+  machineTypes:
+  - cpu: "2"
+    gpu: "0"
+    memory: 7500Mi
+    name: mock-standard-2
+    usable: true
+  regions:
+  - name: mock-west1
+    zones:
+    - name: mock-west1-b
+    - name: mock-west1-c
+    - name: mock-west1-d
+  type: mock
+  volumeTypes:
+  - class: standard
+    name: mock-standard
+    usable: true
+  - class: premium
+    name: mock-ssd
+    usable: true

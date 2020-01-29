@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "name" . }}
+  namespace: "garden"
+  labels:
+{{ include "labels" . | indent 4 }}
+spec:
+  revisionHistoryLimit: 0
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+{{ include "labels" . | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ include "labels" . | indent 8 }}
+    spec:
+      containers:
+      - name: {{ include "name" . }}
+        image: {{ include "image" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command:
+          - /gardener-extension-provider-mock
+          - --webhook-port={{ .Values.webhookConfig.serverPort }}
+        ports:
+        - containerPort: {{ .Values.webhookConfig.serverPort }}
+          hostPort: {{ .Values.webhookConfig.serverPort }}
+          name: webhook
+{{- if .Values.resources }}
+        resources:
+{{ toYaml .Values.resources | nindent 10 }}
+{{- end }}
+        volumeMounts:
+        - mountPath: /tls
+          name: tls
+      volumes:
+      - name: tls
+        secret:
+          secretName: {{ include "name" . }}

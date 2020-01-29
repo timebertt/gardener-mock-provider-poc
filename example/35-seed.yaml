@@ -1,0 +1,21 @@
+apiVersion: core.gardener.cloud/v1beta1
+kind: Seed
+metadata:
+  name: local-seed
+spec:
+  provider:
+    type: mock
+    region: local
+  secretRef:
+    name: local-seed
+    namespace: garden
+  dns:
+    # this has actually no effect, only needed for validation
+    ingressDomain: kubernetes.docker.internal
+  # these are the default networks of docker-for-desktop
+  networks:
+    pods: 10.1.0.0/16
+    services: 10.96.0.1/12
+  taints:
+  # tell Gardener to use IP addresses only for communication to the Shoot's API server
+  - key: seed.gardener.cloud/disable-dns

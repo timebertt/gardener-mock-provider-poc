@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-vpn-shoot
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: dind-node
+  ports:
+    - name: vpn
+      port: {{ .Values.ports.vpn.port }}
+      targetPort: {{ .Values.ports.vpn.nodePort }}

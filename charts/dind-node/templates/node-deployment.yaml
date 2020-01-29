@@ -1,0 +1,175 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "dind-node.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.nodeCount }}
+  selector:
+    matchLabels:
+      app: dind-node
+  template:
+    metadata:
+      labels:
+        app: dind-node
+        networking.gardener.cloud/from-prometheus: allowed
+        networking.gardener.cloud/to-dns: allowed
+        networking.gardener.cloud/to-private-networks: allowed
+        networking.gardener.cloud/to-public-networks: allowed
+        networking.gardener.cloud/to-shoot-networks: allowed
+        networking.gardener.cloud/to-shoot-apiserver: allowed
+        networking.gardener.cloud/from-apiserver: allowed
+    spec:
+      shareProcessNamespace: true
+      containers:
+        - name: kubelet
+          image: "{{ .Values.images.hyperkube.repository }}:v{{ .Values.kubernetes.version }}"
+          securityContext:
+            privileged: true
+          stdin: true
+          tty: true
+          command:
+            - /hyperkube
+            - kubelet
+            - --node-ip=$(NODE_IP)
+            - --bootstrap-kubeconfig=/etc/kubelet/kubeconfig-bootstrap
+            - --kubeconfig=/etc/kubelet/kubeconfig-real
+            - --config=/etc/kubelet/config/kubelet
+            - --container-runtime=docker
+            - --docker-endpoint=tcp://localhost:2375
+            - --network-plugin=cni
+            - --volume-plugin-dir=/var/lib/kubelet/volumeplugins
+            - --fail-swap-on=false
+            - --node-labels=node.kubernetes.io/role=node,worker.gardener.cloud/pool={{ required "worker.name is required" .Values.worker.name }}
+            - --v=2
+          env:
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          resources:
+          {{- toYaml .Values.resources.kubelet | nindent 12 }}
+          volumeMounts:
+            - name: dind-storage
+              mountPath: /var/lib/docker
+            - name: kubelet-storage
+              mountPath: /var/lib/kubelet
+              # mountPropagation=Bidirectional must be used with caution!
+              # see https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation:
+              # "[...] any volume mounts created by Containers in Pods must be destroyed (unmounted)
+              #  by the Containers on termination."
+              mountPropagation: Bidirectional
+            - name: cni-storage
+              mountPath: /etc/cni/net.d
+            - name: cni-binaries
+              mountPath: /opt/cni/bin
+            - name: calico-storage
+              mountPath: /var/lib/calico
+            - mountPath: /etc/kubelet/kubeconfig-bootstrap
+              name: kubelet-bootstrap
+              subPath: kubeconfig-bootstrap
+              readOnly: true
+            - mountPath: /etc/kubelet/ca.crt
+              name: ca-kubelet
+              subPath: ca.crt
+              readOnly: true
+            - mountPath: /etc/kubelet/config/kubelet
+              name: kubelet-conf
+              subPath: kubelet
+              readOnly: true
+            - mountPath: /etc/kubernetes/manifests
+              name: static-pods
+            - name: xtables-lock
+              mountPath: /run/xtables.lock
+              readOnly: false
+          lifecycle:
+            preStop:
+              # this preStop handler unmounts all mounts inside the kubelet-storage volume
+              # to be able to delete the pod again. Needed because of the mount propagation
+              # also it deletes the Node object
+              exec:
+                command:
+                  - sh
+                  - -c
+                  - |
+                    /hyperkube kubectl --kubeconfig /etc/kubelet/kubeconfig-real delete node $NODE_NAME;
+                    sleep 5;
+                    mount | grep /var/lib/kubelet | cut -d' ' -f 3 | xargs umount
+        - name: dind
+          image: "{{ .Values.images.dind.repository }}"
+          securityContext:
+            privileged: true
+          stdin: true
+          tty: true
+          volumeMounts:
+            - name: dind-storage
+              mountPath: /var/lib/docker
+            - name: kubelet-storage
+              mountPath: /var/lib/kubelet
+              # needed for the docker runtime to mount secrets that the kubelet fetches
+              # (for example serviceaccount tokens)
+              mountPropagation: HostToContainer
+            - name: cni-storage
+              mountPath: /etc/cni/net.d
+            - name: cni-binaries
+              mountPath: /opt/cni/bin
+            - name: calico-storage
+              mountPath: /var/lib/calico
+            - name: modules
+              mountPath: /lib/modules
+              readOnly: true
+            - name: xtables-lock
+              mountPath: /run/xtables.lock
+              readOnly: false
+          ports:
+            - containerPort: 10250
+              name: kubelet
+            - containerPort: {{ .Values.ports.vpn.nodePort }}
+              name: vpn
+          lifecycle:
+            preStop:
+              # also unmount kubelet mounts from here to be able to terminate the node pod more reliably
+              exec:
+                command:
+                - sh
+                - -c
+                - |
+                  sleep 15;
+                  mount | grep /var/lib/kubelet | cut -d' ' -f 3 | xargs umount
+          resources:
+          {{- toYaml .Values.resources.dind | nindent 12 }}
+      volumes:
+        - name: dind-storage
+          emptyDir: {}
+        - name: kubelet-storage
+          emptyDir: {}
+        - name: static-pods
+          emptyDir: {}
+        - name: cni-storage
+          emptyDir: {}
+        - name: cni-binaries
+          emptyDir: {}
+        - name: calico-storage
+          emptyDir: {}
+        - name: modules
+          hostPath:
+            path: /lib/modules
+        - name: xtables-lock
+          hostPath:
+            path: /run/xtables.lock
+            type: FileOrCreate
+        - name: kubelet-conf
+          configMap:
+            name: kubelet-config
+        - name: kubelet-bootstrap
+          secret:
+            secretName: kubelet-bootstrap
+        - name: ca-kubelet
+          secret:
+            secretName: ca-kubelet

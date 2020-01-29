@@ -1,0 +1,9 @@
+# host-path based default storage class
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: default
+  namespace: default
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: kubernetes.io/host-path

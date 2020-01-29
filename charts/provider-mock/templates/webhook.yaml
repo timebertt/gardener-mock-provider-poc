@@ -1,0 +1,50 @@
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ include "name" . }}
+webhooks:
+- admissionReviewVersions:
+  - v1beta1
+  clientConfig:
+    service:
+      name: {{ include "name" . }}
+      namespace: garden
+      path: "/service"
+      port: 443
+    caBundle: {{ index .Values.tls "ca.crt" | b64enc }}
+  failurePolicy: Fail
+  name: service.mock.extensions.gardener.cloud
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - UPDATE
+    resources:
+    - services/status
+    scope: 'Namespaced'
+  timeoutSeconds: 5
+- admissionReviewVersions:
+  - v1beta1
+  clientConfig:
+    service:
+      name: {{ include "name" . }}
+      namespace: garden
+      path: "/statefulset"
+      port: 443
+    caBundle: {{ index .Values.tls "ca.crt" | b64enc }}
+  failurePolicy: Fail
+  name: statefulset.mock.extensions.gardener.cloud
+  rules:
+  - apiGroups:
+    - "apps"
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - statefulsets
+    scope: 'Namespaced'
+  timeoutSeconds: 5
